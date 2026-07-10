@@ -6,6 +6,9 @@ import os
 from pathlib import Path
 import stat
 import sys
+import re
+import subprocess
+import tempfile
 from importlib import resources
 
 from . import __version__
@@ -15,6 +18,10 @@ from .models import DEFAULT_HELPER_PATH
 
 
 SYSTEM_CONFIG_PATH = Path("/etc/linux-cache-guard/config.toml")
+TIMER_OVERRIDE_DIRECTORY = Path("/etc/systemd/system/linux-cache-guard.timer.d")
+TIMER_OVERRIDE_PATH = TIMER_OVERRIDE_DIRECTORY / "override.conf"
+DEFAULT_CHECK_INTERVAL = "10min"
+INTERVAL_PATTERN = re.compile(r"^[1-9][0-9]*(s|min|h|d)$")
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -53,6 +60,12 @@ def build_parser() -> argparse.ArgumentParser:
     history_parser = commands.add_parser("history", help="show recent cleanup receipts")
     history_parser.add_argument("--limit", type=int, default=10, help="number of recent receipts to show")
     history_parser.add_argument("--json", action="store_true", dest="as_json", default=argparse.SUPPRESS)
+
+    schedule_parser = commands.add_parser("schedule", help="view or change the systemd check interval")
+    schedule_commands = schedule_parser.add_subparsers(dest="schedule_command", required=True)
+    schedule_commands.add_parser("show", help="show the configured check interval")
+    schedule_set_parser = schedule_commands.add_parser("set", help="set the interval, for example 30min or 1h")
+    schedule_set_parser.add_argument("interval", help="positive duration ending in s, min, h, or d")
     return parser
 
 
@@ -110,6 +123,12 @@ def _emit(payload: dict[str, object], *, as_json: bool) -> None:
                 timestamp = entry.get("created_at", "unknown time")
                 result = entry.get("result", entry.get("receipt_type", "unknown result"))
                 print(f"{timestamp}: {result}")
+    schedule = payload.get("schedule")
+    if isinstance(schedule, dict):
+        print(f"Check interval: {schedule['interval']}")
+        print(f"Source: {schedule['source']}")
+        if schedule.get("message"):
+            print(schedule["message"])
 
 
 def _secure_root_directory(path: Path) -> bool:
@@ -161,6 +180,73 @@ def _install_helper(*, force: bool) -> int:
     return 0
 
 
+def _validate_interval(value: str) -> str:
+    if not INTERVAL_PATTERN.fullmatch(value):
+        raise ValueError("interval must look like 30s, 15min, 1h, or 1d")
+    return value
+
+
+def _schedule_override_contents(interval: str) -> str:
+    return f"[Timer]\nOnBootSec=\nOnUnitActiveSec=\nOnBootSec={interval}\nOnUnitActiveSec={interval}\n"
+
+
+def _show_schedule() -> dict[str, object]:
+    if not TIMER_OVERRIDE_PATH.exists():
+        return {"interval": DEFAULT_CHECK_INTERVAL, "source": "package default"}
+    if TIMER_OVERRIDE_PATH.is_symlink():
+        raise ValueError(f"refusing symbolic-link timer override: {TIMER_OVERRIDE_PATH}")
+    contents = TIMER_OVERRIDE_PATH.read_text(encoding="utf-8")
+    intervals = [
+        line.split("=", 1)[1]
+        for line in contents.splitlines()
+        if line.startswith("OnUnitActiveSec=") and line != "OnUnitActiveSec="
+    ]
+    if not intervals:
+        raise ValueError(f"timer override does not define OnUnitActiveSec: {TIMER_OVERRIDE_PATH}")
+    return {"interval": intervals[-1], "source": str(TIMER_OVERRIDE_PATH)}
+
+
+def _set_schedule(interval: str) -> dict[str, object]:
+    if os.geteuid() != 0:
+        raise PermissionError("run schedule set as root: sudo linux-cache-guard schedule set <interval>")
+    TIMER_OVERRIDE_DIRECTORY.mkdir(mode=0o755, parents=True, exist_ok=True)
+    if not _secure_root_directory(TIMER_OVERRIDE_DIRECTORY):
+        raise PermissionError(f"refusing insecure timer override directory: {TIMER_OVERRIDE_DIRECTORY}")
+    if TIMER_OVERRIDE_PATH.is_symlink():
+        raise PermissionError(f"refusing symbolic-link timer override: {TIMER_OVERRIDE_PATH}")
+    descriptor, temporary_name = tempfile.mkstemp(prefix=".override.", dir=TIMER_OVERRIDE_DIRECTORY)
+    temporary = Path(temporary_name)
+    try:
+        os.fchmod(descriptor, 0o644)
+        with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
+            handle.write(_schedule_override_contents(interval))
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.chown(temporary, 0, 0)
+        temporary.replace(TIMER_OVERRIDE_PATH)
+    except BaseException:
+        temporary.unlink(missing_ok=True)
+        raise
+
+    message = "Timer override saved."
+    if Path("/run/systemd/system").is_dir():
+        reload_result = subprocess.run(["/usr/bin/systemctl", "daemon-reload"], check=False, capture_output=True, text=True)
+        if reload_result.returncode != 0:
+            raise RuntimeError(reload_result.stderr.strip() or "systemctl daemon-reload failed")
+        restart_result = subprocess.run(
+            ["/usr/bin/systemctl", "try-restart", "linux-cache-guard.timer"],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        if restart_result.returncode != 0:
+            raise RuntimeError(restart_result.stderr.strip() or "systemctl try-restart failed")
+        message = "Timer override saved and active timer reloaded."
+    else:
+        message = "Timer override saved; systemd is not active, so no timer was restarted."
+    return {"interval": interval, "source": str(TIMER_OVERRIDE_PATH), "message": message}
+
+
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     if args.command == "init-config":
@@ -179,6 +265,14 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     if args.command == "install-helper":
         return _install_helper(force=args.force)
+    if args.command == "schedule":
+        try:
+            schedule = _show_schedule() if args.schedule_command == "show" else _set_schedule(_validate_interval(args.interval))
+        except (OSError, PermissionError, RuntimeError, ValueError) as exc:
+            print(f"schedule error: {exc}", file=sys.stderr)
+            return 2
+        _emit({"schedule": schedule}, as_json=args.as_json)
+        return 0
 
     try:
         policy = load_policy(args.config)

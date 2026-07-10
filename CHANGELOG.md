@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.1-alpha - 2026-07-11
+
+- Added `schedule show` and `schedule set` so an operator can set the systemd
+  check interval to values such as `15min`, `30min`, or `1h` without manually
+  editing a unit override.
+
 ## 0.1.0-alpha - 2026-07-11
 
 - Initial source-install alpha for Ubuntu and WSL systems with Python 3.11+.

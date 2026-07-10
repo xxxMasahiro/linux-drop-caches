@@ -58,6 +58,15 @@ arguments. See [docs/operations.md](docs/operations.md) before enabling an
 automatic timer. A future distribution package should install the same files
 without requiring a source checkout.
 
+To change the check interval after installation, run for example:
+
+```bash
+sudo /usr/local/bin/linux-cache-guard schedule set 30min
+```
+
+This changes only how often the timer checks conditions. It does not enable
+automatic cleanup.
+
 ## Project layout
 
 - `linux-cache-guard`: normal user-facing command for status and policy checks.

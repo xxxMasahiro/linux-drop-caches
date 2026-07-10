@@ -39,4 +39,4 @@ class ConfigTests(unittest.TestCase):
 
     def test_missing_system_configuration_fails_closed(self) -> None:
         with self.assertRaisesRegex(ValueError, "required system configuration"):
-            load_policy(Path("/etc/linux-cache-guard/config.toml"))
+            load_policy(Path("/etc/linux-cache-guard/does-not-exist.toml"))

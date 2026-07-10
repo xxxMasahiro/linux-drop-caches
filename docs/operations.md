@@ -45,6 +45,21 @@ only for `/usr/local/sbin/linux-drop-caches` with no arguments. Do not grant
 passwordless sudo access to a shell, Python interpreter, or an
 argument-taking wrapper.
 
+## Changing the check interval
+
+The package default is a ten-minute check. An administrator can choose a
+different interval without editing a systemd file manually:
+
+```bash
+sudo /usr/local/bin/linux-cache-guard schedule show
+sudo /usr/local/bin/linux-cache-guard schedule set 30min
+```
+
+Supported units are `s`, `min`, `h`, and `d`, for example `15min`, `1h`, or
+`2d`. The command writes a fixed systemd timer override and reloads an already
+active timer. It does not enable the timer and does not change
+`auto_cleanup`.
+
 ## Interactive cleanup
 
 Without a system installation, the normal command uses the calling user's
