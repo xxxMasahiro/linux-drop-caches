@@ -51,7 +51,7 @@ if [ -f "$config_path" ]; then
   config_mode=$(stat -c %a "$config_path")
   config_group_digit=$(( (config_mode / 10) % 10 ))
   config_other_digit=$(( config_mode % 10 ))
-  if [ "$config_owner" -ne 0 ] || [ "$config_group_digit" -ge 2 ] || [ "$config_other_digit" -ge 2 ]; then
+  if [ "$config_owner" -ne 0 ] || [ $((config_group_digit & 2)) -ne 0 ] || [ $((config_other_digit & 2)) -ne 0 ]; then
     echo "refusing unsafe system configuration permissions: $config_path" >&2
     exit 1
   fi

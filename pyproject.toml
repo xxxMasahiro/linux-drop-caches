@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "linux-drop-caches"
-version = "0.1.1"
+version = "0.1.2"
 description = "A policy-gated Linux page-cache cleanup tool with receipts."
 readme = "README.md"
 requires-python = ">=3.11"

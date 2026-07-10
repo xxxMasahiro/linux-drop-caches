@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.2-alpha - 2026-07-11
+
+- Fixed source-installer permission validation so a secure `0644` system
+  configuration is accepted rather than mistaken for group-writable.
+
 ## 0.1.1-alpha - 2026-07-11
 
 - Added `schedule show` and `schedule set` so an operator can set the systemd
