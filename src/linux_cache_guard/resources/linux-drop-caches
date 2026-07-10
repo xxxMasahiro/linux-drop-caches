@@ -1,0 +1,13 @@
+#!/bin/sh
+# This program is intentionally small. Keep policy and logging outside root.
+set -eu
+PATH=/usr/sbin:/usr/bin:/sbin:/bin
+export PATH
+
+if [ "$(id -u)" -ne 0 ]; then
+  echo "linux-drop-caches must run as root" >&2
+  exit 1
+fi
+
+sync
+printf '%s\n' 3 > /proc/sys/vm/drop_caches

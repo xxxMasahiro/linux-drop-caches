@@ -1,0 +1,2 @@
+# Managed by the linux-drop-caches package. Do not broaden this command.
+linux-cache-guard ALL=(root) NOPASSWD: /usr/local/sbin/linux-drop-caches ""

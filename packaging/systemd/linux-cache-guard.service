@@ -1,0 +1,24 @@
+[Unit]
+Description=Check Linux reclaimable cache and run a policy-gated cleanup
+After=local-fs.target
+
+[Service]
+Type=oneshot
+User=linux-cache-guard
+Group=linux-cache-guard
+ExecStart=/usr/local/bin/linux-cache-guard --config /etc/linux-cache-guard/config.toml cleanup --auto
+StateDirectory=linux-cache-guard
+UMask=0077
+TimeoutStartSec=10min
+PrivateTmp=true
+PrivateNetwork=true
+ProtectHome=true
+ProtectSystem=full
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+ProtectClock=true
+LockPersonality=true
+RestrictNamespaces=true
+RestrictAddressFamilies=AF_UNIX
+ReadWritePaths=/var/lib/linux-cache-guard

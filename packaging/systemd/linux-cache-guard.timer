@@ -1,0 +1,11 @@
+[Unit]
+Description=Check reclaimable Linux cache every ten minutes
+
+[Timer]
+OnBootSec=10min
+OnUnitActiveSec=10min
+Persistent=true
+Unit=linux-cache-guard.service
+
+[Install]
+WantedBy=timers.target

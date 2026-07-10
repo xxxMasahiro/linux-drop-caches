@@ -1,0 +1,11 @@
+#!@PYTHON_BIN@
+"""System launcher installed by scripts/install-system.sh."""
+
+import sys
+
+sys.path.insert(0, "/usr/local/lib/linux-cache-guard")
+
+from linux_cache_guard.cli import main
+
+
+raise SystemExit(main())

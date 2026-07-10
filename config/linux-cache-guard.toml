@@ -1,0 +1,24 @@
+# Copy this file to ~/.config/linux-cache-guard/config.toml for personal use,
+# or /etc/linux-cache-guard/config.toml for a systemd-managed installation.
+
+[policy]
+# `auto_cleanup` must stay false until the host has been observed in dry-run
+# mode and an operator explicitly accepts the policy.
+enabled = true
+auto_cleanup = false
+
+# Leave this unset to use max(2 GiB, 35% of installed memory).
+# min_reclaimable_cache_bytes = 4294967296
+
+# Automatic cleanup also requires an explicit memory-pressure limit.
+# max_available_memory_bytes = 2147483648
+
+max_dirty_bytes = 67108864
+require_writeback_zero = true
+require_no_build_processes = true
+cooldown_seconds = 3600
+min_cache_growth_bytes = 536870912
+
+[storage]
+# A systemd service should use /var/lib/linux-cache-guard instead.
+# state_dir = "/var/lib/linux-cache-guard"
