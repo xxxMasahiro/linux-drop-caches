@@ -13,9 +13,29 @@ script_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 project_dir=$(dirname "$script_dir")
 service_user=linux-cache-guard
 helper_path=/usr/local/sbin/linux-drop-caches
+admin_path=/usr/local/sbin/linux-cache-guard-admin
 library_dir=/usr/local/lib/linux-cache-guard
 config_path=/etc/linux-cache-guard/config.toml
 python_bin=
+agent_user=
+agent_policy_tmp=
+
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --agent-user)
+      if [ "$#" -lt 2 ]; then
+        echo "--agent-user requires a local user name" >&2
+        exit 2
+      fi
+      agent_user=$2
+      shift 2
+      ;;
+    *)
+      echo "usage: $0 [--agent-user <local-user>]" >&2
+      exit 2
+      ;;
+  esac
+done
 
 for candidate in /usr/bin/python3.13 /usr/bin/python3.12 /usr/bin/python3.11; do
   if [ -x "$candidate" ] && "$candidate" -c 'import sys; raise SystemExit(sys.version_info < (3, 11))'; then
@@ -37,9 +57,33 @@ if ! command -v getent >/dev/null 2>&1 || ! command -v sudo >/dev/null 2>&1; the
   echo "getent and sudo are required for the systemd service account" >&2
   exit 1
 fi
+if ! command -v runuser >/dev/null 2>&1; then
+  echo "runuser is required for the root administration command" >&2
+  exit 1
+fi
 if ! command -v stat >/dev/null 2>&1; then
   echo "stat is required to validate an existing system configuration" >&2
   exit 1
+fi
+if [ -n "$agent_user" ]; then
+  case "$agent_user" in
+    *[!A-Za-z0-9_-]*|'')
+      echo "agent user name contains unsupported characters" >&2
+      exit 1
+      ;;
+  esac
+  if [ "$agent_user" = root ] || ! id -u "$agent_user" >/dev/null 2>&1; then
+    echo "agent user must name an existing non-root local account" >&2
+    exit 1
+  fi
+  if ! command -v visudo >/dev/null 2>&1 || ! command -v mktemp >/dev/null 2>&1; then
+    echo "visudo and mktemp are required for an agent policy" >&2
+    exit 1
+  fi
+  agent_policy_tmp=$(mktemp)
+  trap 'rm -f "$agent_policy_tmp"' EXIT HUP INT TERM
+  sed "s|@AGENT_USER@|$agent_user|" "$project_dir/packaging/sudoers/linux-cache-guard-agent.template" >"$agent_policy_tmp"
+  visudo -cf "$agent_policy_tmp"
 fi
 
 if [ -L "$config_path" ] || { [ -e "$config_path" ] && [ ! -f "$config_path" ]; }; then
@@ -94,6 +138,8 @@ chmod 0755 /usr/local/bin/linux-cache-guard
 chown root:root /usr/local/bin/linux-cache-guard
 install -m 0755 "$project_dir/src/linux_cache_guard/resources/linux-drop-caches" "$helper_path"
 chown root:root "$helper_path"
+install -m 0755 "$project_dir/src/linux_cache_guard/resources/linux-cache-guard-admin" "$admin_path"
+chown root:root "$admin_path"
 
 if [ ! -e "$config_path" ]; then
   install -m 0644 "$project_dir/config/linux-cache-guard.toml" "$config_path"
@@ -104,6 +150,11 @@ fi
 install -m 0644 "$project_dir/packaging/systemd/linux-cache-guard.service" /etc/systemd/system/linux-cache-guard.service
 install -m 0644 "$project_dir/packaging/systemd/linux-cache-guard.timer" /etc/systemd/system/linux-cache-guard.timer
 install -m 0440 "$project_dir/packaging/sudoers/linux-cache-guard" /etc/sudoers.d/linux-cache-guard
+if [ -n "$agent_user" ]; then
+  agent_policy=/etc/sudoers.d/linux-cache-guard-agent-$agent_user
+  install -m 0440 "$agent_policy_tmp" "$agent_policy"
+  chown root:root "$agent_policy"
+fi
 
 if [ -d /run/systemd/system ] && command -v systemctl >/dev/null 2>&1; then
   systemctl daemon-reload
@@ -112,3 +163,6 @@ else
 fi
 
 echo "installed linux-drop-caches; automatic cleanup remains disabled in $config_path"
+if [ -n "$agent_user" ]; then
+  echo "installed limited agent policy for $agent_user at /etc/sudoers.d/linux-cache-guard-agent-$agent_user"
+fi

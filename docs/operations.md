@@ -145,6 +145,13 @@ sudo -u linux-cache-guard /usr/local/bin/linux-cache-guard \
 The displayed cache difference is an estimate based on before/after snapshots;
 it is not a measurement of bytes freed by the kernel.
 
+## AI agent administration
+
+Use `install-system.sh --agent-user AGENT_USER` only when an administrator has
+reviewed the narrow root command surface described in
+[agent-administration.md](agent-administration.md). Do not give an AI agent
+sudo access to the source installer or repository checkout.
+
 ## Receipts
 
 Each cleanup attempt writes one JSON line and updates a latest-receipt JSON

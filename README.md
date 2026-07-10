@@ -67,6 +67,11 @@ sudo /usr/local/bin/linux-cache-guard schedule set 30min
 This changes only how often the timer checks conditions. It does not enable
 automatic cleanup.
 
+For a constrained AI-agent sudo policy, see
+[docs/agent-administration.md](docs/agent-administration.md). The agent policy
+is intentionally separate from release deployment; it never grants root access
+to a mutable source checkout.
+
 ## Project layout
 
 - `linux-cache-guard`: normal user-facing command for status and policy checks.

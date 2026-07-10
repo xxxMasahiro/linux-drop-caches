@@ -1,0 +1,40 @@
+#!/bin/sh
+# Root-owned dispatch for the intentionally small agent administration surface.
+set -eu
+PATH=/usr/sbin:/usr/bin:/sbin:/bin
+export PATH
+
+if [ "$(id -u)" -ne 0 ]; then
+  echo "linux-cache-guard-admin must run as root" >&2
+  exit 1
+fi
+
+command=${1:-}
+case "$command" in
+  status)
+    if [ "$#" -ne 1 ]; then
+      echo "usage: linux-cache-guard-admin status" >&2
+      exit 2
+    fi
+    exec /usr/local/bin/linux-cache-guard --config /etc/linux-cache-guard/config.toml check --auto
+    ;;
+  dry-run)
+    if [ "$#" -ne 1 ]; then
+      echo "usage: linux-cache-guard-admin dry-run" >&2
+      exit 2
+    fi
+    exec /usr/sbin/runuser -u linux-cache-guard -- /usr/local/bin/linux-cache-guard \
+      --config /etc/linux-cache-guard/config.toml cleanup --dry-run
+    ;;
+  set-interval)
+    if [ "$#" -ne 2 ]; then
+      echo "usage: linux-cache-guard-admin set-interval <duration>" >&2
+      exit 2
+    fi
+    exec /usr/local/bin/linux-cache-guard schedule set "$2"
+    ;;
+  *)
+    echo "allowed commands: status, dry-run, set-interval" >&2
+    exit 2
+    ;;
+esac

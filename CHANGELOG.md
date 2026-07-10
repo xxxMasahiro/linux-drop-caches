@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.3-alpha - 2026-07-11
+
+- Added a root-owned `linux-cache-guard-admin` command and optional,
+  user-specific agent sudo policy for status, dry-run, and interval changes.
+- Documented the boundary between constrained administration and a future
+  signed-release deployment workflow.
+
 ## 0.1.2-alpha - 2026-07-11
 
 - Fixed source-installer permission validation so a secure `0644` system
