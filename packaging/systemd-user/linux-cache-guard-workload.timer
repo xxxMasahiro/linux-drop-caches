@@ -1,0 +1,11 @@
+[Unit]
+Description=Check opt-in Linux workload resource state every minute
+
+[Timer]
+OnBootSec=1min
+OnUnitActiveSec=1min
+Persistent=true
+Unit=linux-cache-guard-workload.service
+
+[Install]
+WantedBy=timers.target

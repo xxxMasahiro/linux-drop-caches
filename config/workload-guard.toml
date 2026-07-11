@@ -1,0 +1,17 @@
+# This policy is independent from config.toml and never controls cache cleanup.
+format_version = 1
+
+[workload_guard]
+# Keep workload management disabled until an operator has reviewed status output.
+enabled = false
+mode = "observe"
+min_host_available_bytes = 2147483648
+max_managed_workloads = 3
+event_max_bytes = 1048576
+event_retention_days = 14
+# The optional user timer wakes every minute; this is the minimum record interval.
+sample_interval_seconds = 300
+
+[workload_guard.profiles.coding]
+admission_bytes = 2147483648
+memory_high_bytes = 3221225472

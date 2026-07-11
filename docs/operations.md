@@ -25,6 +25,8 @@ each component where Linux expects it:
 | System configuration | `/etc/linux-cache-guard/config.toml` | Shared automatic-cleanup policy |
 | Receipts | `/var/lib/linux-cache-guard/` | Cleanup history for the system timer |
 | Timer | systemd unit directory | Optional ten-minute policy checks |
+| Workload policy | `/etc/linux-cache-guard/workload-guard.toml` | Separate, disabled workload guard policy |
+| Workload state | User XDG state directory | Per-user, non-privileged workload events |
 
 For an early source installation, install the fixed helper, system command,
 configuration, service account, limited sudo rule, and systemd units together:
@@ -151,6 +153,14 @@ Use `install-system.sh --agent-user AGENT_USER` only when an administrator has
 reviewed the narrow root command surface described in
 [agent-administration.md](agent-administration.md). Do not give an AI agent
 sudo access to the source installer or repository checkout.
+
+## Workload guard
+
+The optional workload guard is separate from cache cleanup and uses no new
+sudo permission. It observes or starts only commands the user explicitly runs
+through `linux-cache-guard workload`. See [workloads.md](workloads.md) for the
+configuration, capability checks, user timer, WSL limits, and cooperative
+control boundary.
 
 ## Receipts
 

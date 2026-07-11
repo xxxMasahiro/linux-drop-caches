@@ -9,13 +9,15 @@ if [ "$(id -u)" -ne 0 ]; then
   exit 1
 fi
 
-script_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+script_dir=$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd)
 project_dir=$(dirname "$script_dir")
 service_user=linux-cache-guard
 helper_path=/usr/local/sbin/linux-drop-caches
 admin_path=/usr/local/sbin/linux-cache-guard-admin
 library_dir=/usr/local/lib/linux-cache-guard
 config_path=/etc/linux-cache-guard/config.toml
+workload_config_path=/etc/linux-cache-guard/workload-guard.toml
+user_unit_dir=/usr/local/lib/systemd/user
 python_bin=
 agent_user=
 agent_policy_tmp=
@@ -86,20 +88,22 @@ if [ -n "$agent_user" ]; then
   visudo -cf "$agent_policy_tmp"
 fi
 
-if [ -L "$config_path" ] || { [ -e "$config_path" ] && [ ! -f "$config_path" ]; }; then
-  echo "refusing non-regular system configuration: $config_path" >&2
-  exit 1
-fi
-if [ -f "$config_path" ]; then
-  config_owner=$(stat -c %u "$config_path")
-  config_mode=$(stat -c %a "$config_path")
-  config_group_digit=$(( (config_mode / 10) % 10 ))
-  config_other_digit=$(( config_mode % 10 ))
-  if [ "$config_owner" -ne 0 ] || [ $((config_group_digit & 2)) -ne 0 ] || [ $((config_other_digit & 2)) -ne 0 ]; then
-    echo "refusing unsafe system configuration permissions: $config_path" >&2
+for protected_config in "$config_path" "$workload_config_path"; do
+  if [ -L "$protected_config" ] || { [ -e "$protected_config" ] && [ ! -f "$protected_config" ]; }; then
+    echo "refusing non-regular system configuration: $protected_config" >&2
     exit 1
   fi
-fi
+  if [ -f "$protected_config" ]; then
+    config_owner=$(stat -c %u "$protected_config")
+    config_mode=$(stat -c %a "$protected_config")
+    config_group_digit=$(( (config_mode / 10) % 10 ))
+    config_other_digit=$(( config_mode % 10 ))
+    if [ "$config_owner" -ne 0 ] || [ $((config_group_digit & 2)) -ne 0 ] || [ $((config_other_digit & 2)) -ne 0 ]; then
+      echo "refusing unsafe system configuration permissions: $protected_config" >&2
+      exit 1
+    fi
+  fi
+done
 
 if id -u "$service_user" >/dev/null 2>&1; then
   account_line=$(getent passwd "$service_user")
@@ -126,7 +130,7 @@ else
     --shell /usr/sbin/nologin "$service_user"
 fi
 
-install -d -m 0755 /usr/local/bin "$library_dir" /usr/local/sbin /etc/linux-cache-guard
+install -d -m 0755 /usr/local/bin "$library_dir" /usr/local/sbin /etc/linux-cache-guard "$user_unit_dir"
 install -d -m 0750 -o "$service_user" -g "$service_user" /var/lib/linux-cache-guard
 rm -rf "$library_dir/linux_cache_guard"
 cp -R "$project_dir/src/linux_cache_guard" "$library_dir/"
@@ -146,9 +150,16 @@ if [ ! -e "$config_path" ]; then
 else
   echo "preserving existing configuration: $config_path"
 fi
+if [ ! -e "$workload_config_path" ]; then
+  install -m 0644 "$project_dir/config/workload-guard.toml" "$workload_config_path"
+else
+  echo "preserving existing workload configuration: $workload_config_path"
+fi
 
 install -m 0644 "$project_dir/packaging/systemd/linux-cache-guard.service" /etc/systemd/system/linux-cache-guard.service
 install -m 0644 "$project_dir/packaging/systemd/linux-cache-guard.timer" /etc/systemd/system/linux-cache-guard.timer
+install -m 0644 "$project_dir/packaging/systemd-user/linux-cache-guard-workload.service" "$user_unit_dir/linux-cache-guard-workload.service"
+install -m 0644 "$project_dir/packaging/systemd-user/linux-cache-guard-workload.timer" "$user_unit_dir/linux-cache-guard-workload.timer"
 install -m 0440 "$project_dir/packaging/sudoers/linux-cache-guard" /etc/sudoers.d/linux-cache-guard
 if [ -n "$agent_user" ]; then
   agent_policy=/etc/sudoers.d/linux-cache-guard-agent-$agent_user
@@ -163,6 +174,7 @@ else
 fi
 
 echo "installed linux-drop-caches; automatic cleanup remains disabled in $config_path"
+echo "installed workload guard configuration and disabled user timer; enable it explicitly with systemctl --user"
 if [ -n "$agent_user" ]; then
   echo "installed limited agent policy for $agent_user at /etc/sudoers.d/linux-cache-guard-agent-$agent_user"
 fi

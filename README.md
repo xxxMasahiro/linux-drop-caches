@@ -15,7 +15,7 @@ ship an older Python, install a supported Python version before running it.
 
 ## Release scope
 
-Version 0.1 is a source-install alpha for Ubuntu and WSL environments with
+Version 0.2.0-alpha.1 is a source-install alpha for Ubuntu and WSL environments with
 Python 3.11+; it is not yet a distribution-managed package. A stable release
 must add a Debian package, upgrade and uninstall behavior that preserves user
 configuration and receipts by default, a changelog, and CI validation.
@@ -30,6 +30,8 @@ configuration and receipts by default, a changelog, and CI validation.
 - Records JSON receipts for attempted and completed cleanups.
 - Provides a systemd timer template that checks every ten minutes but is
   disabled for automatic cleanup by default.
+- Includes an opt-in, non-privileged workload guard that can observe Linux
+  memory pressure and advise whether another managed workload should start.
 
 ## Quick start
 
@@ -72,12 +74,41 @@ For a constrained AI-agent sudo policy, see
 is intentionally separate from release deployment; it never grants root access
 to a mutable source checkout.
 
+## Workload guard (alpha)
+
+The optional `workload` namespace is for locally-run AI agents, browser
+automation, builds, and other heavy commands. It is independent from cache
+cleanup: it never calls `linux-drop-caches`, does not inspect prompts or command
+lines for history, and is disabled by default.
+
+```bash
+linux-cache-guard workload capabilities
+linux-cache-guard workload status
+```
+
+To use admission checks or a managed `MemoryHigh` scope, review the separate
+configuration at `/etc/linux-cache-guard/workload-guard.toml` and then use a
+profile:
+
+```bash
+linux-cache-guard workload check --profile coding
+linux-cache-guard workload verify-control
+linux-cache-guard workload run --profile coding -- your-agent-command
+```
+
+`workload run` is a cooperative user-level control. A process running as the
+same Linux user can choose not to use it, so it is not a security sandbox. It
+uses `MemoryHigh` only; it does not set `MemoryMax`, kill workloads, or claim to
+manage Windows-host memory from WSL. See [docs/workloads.md](docs/workloads.md).
+
 ## Project layout
 
 - `linux-cache-guard`: normal user-facing command for status and policy checks.
 - `linux-drop-caches`: fixed root helper installed in `/usr/local/sbin`.
 - `config/linux-cache-guard.toml`: safe default configuration.
+- `config/workload-guard.toml`: separate, disabled workload policy.
 - `packaging/systemd`: optional timer templates.
+- `packaging/systemd-user`: optional workload observation timer templates.
 
 ## Safety model
 

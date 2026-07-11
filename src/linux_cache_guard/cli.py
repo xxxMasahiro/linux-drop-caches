@@ -15,6 +15,8 @@ from . import __version__
 from .config import default_config_path, load_policy, sample_config
 from .engine import StateError, cleanup, inspect, load_history, recover_pending
 from .models import DEFAULT_HELPER_PATH
+from .workloads.cli import configure_parser as configure_workload_parser
+from .workloads.cli import execute as execute_workload
 
 
 SYSTEM_CONFIG_PATH = Path("/etc/linux-cache-guard/config.toml")
@@ -66,6 +68,8 @@ def build_parser() -> argparse.ArgumentParser:
     schedule_commands.add_parser("show", help="show the configured check interval")
     schedule_set_parser = schedule_commands.add_parser("set", help="set the interval, for example 30min or 1h")
     schedule_set_parser.add_argument("interval", help="positive duration ending in s, min, h, or d")
+    workload_parser = commands.add_parser("workload", help="inspect and cooperatively manage opt-in user workloads")
+    configure_workload_parser(workload_parser)
     return parser
 
 
@@ -273,6 +277,8 @@ def main(argv: list[str] | None = None) -> int:
             return 2
         _emit({"schedule": schedule}, as_json=args.as_json)
         return 0
+    if args.command == "workload":
+        return execute_workload(args)
 
     try:
         policy = load_policy(args.config)

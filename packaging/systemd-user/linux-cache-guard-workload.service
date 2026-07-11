@@ -1,0 +1,18 @@
+[Unit]
+Description=Record an opt-in Linux workload resource observation
+ConditionPathExists=/etc/linux-cache-guard/workload-guard.toml
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/linux-cache-guard workload --config /etc/linux-cache-guard/workload-guard.toml monitor
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateNetwork=true
+ProtectSystem=full
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+ProtectClock=true
+LockPersonality=true
+RestrictNamespaces=true
+RestrictAddressFamilies=AF_UNIX

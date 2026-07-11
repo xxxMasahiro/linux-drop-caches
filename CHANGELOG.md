@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.2.0-alpha.1 - 2026-07-11
+
+- Added an opt-in, separate workload guard for observing Linux memory pressure
+  and advising managed workload admission.
+- Added cooperative `MemoryHigh` scopes for explicitly managed user commands.
+- Added independent workload configuration, state, events, JSON output,
+  Prometheus text output, and a disabled user observation timer.
+- Kept cache cleanup configuration, receipts, timer, root helper, and AI sudo
+  policy independent from the workload guard.
+- Deliberately excluded `MemoryMax`, automatic workload termination, and new
+  privileged workload commands.
+
 ## 0.1.3-alpha - 2026-07-11
 
 - Added a root-owned `linux-cache-guard-admin` command and optional,
