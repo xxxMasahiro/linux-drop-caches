@@ -22,6 +22,7 @@ jobs:
       - run: sh -n src/linux_cache_guard/resources/linux-drop-caches
       - run: sh -n src/linux_cache_guard/resources/linux-cache-guard-admin
       - run: shellcheck scripts/install-system.sh src/linux_cache_guard/resources/linux-drop-caches src/linux_cache_guard/resources/linux-cache-guard-admin
+      - run: sudo install -D -m 0755 /usr/bin/true /usr/local/bin/linux-cache-guard
       - run: systemd-analyze verify packaging/systemd/linux-cache-guard.service packaging/systemd/linux-cache-guard.timer packaging/systemd-user/linux-cache-guard-workload.service packaging/systemd-user/linux-cache-guard-workload.timer
       - run: visudo -cf packaging/sudoers/linux-cache-guard
       - run: sed 's|@AGENT_USER@|agent-user|' packaging/sudoers/linux-cache-guard-agent.template | visudo -cf -
